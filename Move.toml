@@ -1,0 +1,12 @@
+[package]
+name = "ipx"
+version = "0.0.1"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "devnet" }
+
+[addresses]
+ipx =  "0x0"
+sui =  "0000000000000000000000000000000000000002"
+dev = "0xCAFE"
+zero = "0x0"
