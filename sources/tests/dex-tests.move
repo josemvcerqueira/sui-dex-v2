@@ -1,6 +1,6 @@
 #[test_only]
 module ipx::dex_tests {
-    use sui::coin::{mint_for_testing as mint, destroy_for_testing as burn};
+    use sui::coin::{Self, mint_for_testing as mint, destroy_for_testing as burn};
     use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
     use sui::math;
 
@@ -98,6 +98,58 @@ module ipx::dex_tests {
     fun test_add_liquidity() {
         let scenario = scenario();
         test_add_liquidity_(&mut scenario);
+        test::end(scenario);
+    }
+
+    fun test_remove_liquidity_(test: &mut Scenario) {
+        test_create_pool_(test);
+        remove_fee(test);
+
+        let (_, bob) = people();
+
+        let ether_value = INITIAL_ETHER_VALUE / 10;
+        let usdc_value = INITIAL_USDC_VALUE / 10;
+
+        next_tx(test, bob);
+        {
+          let storage = test::take_shared<Storage>(test);
+
+          let lp_coin = dex::add_liquidity(
+            &mut storage,
+            mint<Ether>(ether_value, ctx(test)),
+            mint<USDC>(usdc_value, ctx(test)),
+            ctx(test)
+          );
+
+          let pool = dex::borrow_pool<Ether, USDC>(&storage);
+          let (ether_reserves_1, usdc_reserves_1, supply_1) = dex::get_amounts(pool);
+
+          let lp_coin_value = coin::value(&lp_coin);
+
+          let (ether, usdc) = dex::remove_liquidity(
+              &mut storage,
+              lp_coin,
+              ctx(test)
+          );
+
+          let pool = dex::borrow_pool<Ether, USDC>(&storage);
+          let (ether_reserves_2, usdc_reserves_2, supply_2) = dex::get_amounts(pool);
+
+          // rounding issues
+          assert!(burn(ether) == 9, 0);
+          assert!(burn(usdc) == 14992, 0);
+          assert!(supply_1 == supply_2 + lp_coin_value, 0);
+          assert!(ether_reserves_1 == ether_reserves_2 + 9, 0);
+          assert!(usdc_reserves_1 == usdc_reserves_2 + 14992, 0);
+
+          test::return_shared(storage);
+        }
+    }
+
+    #[test]
+    fun test_remove_liquidity() {
+        let scenario = scenario();
+        test_remove_liquidity_(&mut scenario);
         test::end(scenario);
     }
 

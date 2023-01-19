@@ -2,7 +2,6 @@ module ipx::dex {
 
   use std::string::{String}; 
 
-
   use sui::tx_context::{Self, TxContext};
   use sui::coin::{Self, Coin};
   use sui::balance::{Self, Supply, Balance};
@@ -347,11 +346,11 @@ module ipx::dex {
 
         assert!(coin_x_value != 0 && coin_x_value != 0, ERROR_ADD_LIQUIDITY_ZERO_AMOUNT);
 
-        let (token_x_reserve, token_y_reserve, lpt_supply) = get_amounts(pool);
+        let (token_x_reserve, token_y_reserve, supply) = get_amounts(pool);
 
         let share_to_mint = math::min(
-          (coin_x_value * lpt_supply) / token_x_reserve,
-          (coin_y_value * lpt_supply) / token_y_reserve
+          (coin_x_value * supply) / token_x_reserve,
+          (coin_y_value * supply) / token_y_reserve
         );
 
         let new_reserve_x = balance::join(&mut pool.balance_x, coin::into_balance(coin_x));
@@ -560,7 +559,7 @@ module ipx::dex {
     }
 
     #[test_only]
-    public fun get_fee_to(storage: &mut Storage,): address {
+    public fun get_fee_to(storage: &Storage,): address {
       storage.fee_to
     }
 
