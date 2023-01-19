@@ -495,7 +495,7 @@ module ipx::dex {
 
         let coin_y_value = balance::value(&coin_y_balance);
 
-        let coin_x_value = calculate_value_out(coin_y_value, coin_x_reserve, coin_x_reserve);
+        let coin_x_value = calculate_value_out(coin_y_value, coin_y_reserve, coin_x_reserve);
 
         assert!(coin_x_value >=  coin_x_min_value, ERROR_SLIPPAGE);
 

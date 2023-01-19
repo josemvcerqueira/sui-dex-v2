@@ -3,6 +3,7 @@ module ipx::dex_tests {
 
     use sui::coin::{Self, mint_for_testing as mint, destroy_for_testing as burn};
     use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
+    use sui::sui::{SUI};
     use sui::math;
 
     use ipx::dex::{Self, Storage, AdminCap, LPCoin};
@@ -280,6 +281,66 @@ module ipx::dex_tests {
     fun test_remove_liquidity_with_fee() {
         let scenario = scenario();
         test_remove_liquidity_with_fee_(&mut scenario);
+        test::end(scenario);
+    }
+
+    fun test_one_hop_swap_(test: &mut Scenario) {
+       test_create_pool_(test);
+
+       let (_, bob) = people();
+        
+       next_tx(test, bob);
+       {
+        let storage = test::take_shared<Storage>(test);
+
+        let lp_coin = dex::create_pool(
+          &mut storage,
+          mint<Ether>(100000, ctx(test)),
+          mint<SUI>(3000000, ctx(test)),
+          ctx(test)
+        );
+
+        burn(lp_coin);
+        test::return_shared(storage);
+       };
+
+       next_tx(test, bob);
+       {
+        let storage = test::take_shared<Storage>(test);
+
+        let sui_swap_amount = 300000;
+
+        let pool = dex::borrow_pool<Ether, SUI>(&storage);
+        let (ether_reserves, sui_reserves, _) = dex::get_amounts(pool);
+
+        let token_in_amount = sui_swap_amount - ((sui_swap_amount * 300) / 100000);
+        let ether_amount_received = (ether_reserves * token_in_amount) / (token_in_amount + sui_reserves);
+
+        let pool = dex::borrow_pool<Ether, USDC>(&storage);
+        let (ether_reserves, usdc_reserves, _) = dex::get_amounts(pool);
+
+        let token_in_amount = ether_amount_received - ((ether_amount_received * 300) / 100000);
+        let usdc_amount_received = (usdc_reserves * token_in_amount) / (ether_reserves + token_in_amount);
+
+        let (sui, usdc) = dex::one_hop_swap<SUI, USDC, Ether>(
+          &mut storage,
+          mint<SUI>(sui_swap_amount, ctx(test)),
+          mint<USDC>(0, ctx(test)),
+          0,
+          ctx(test)
+        );
+
+        assert!(burn(usdc) == usdc_amount_received, 0);
+        assert!(burn(sui) == 0, 0);
+
+        test::return_shared(storage);
+       }
+    }
+
+    #[test]
+    fun test_one_hop_swap() {
+        let scenario = scenario();
+        test_one_hop_swap_(&mut scenario);
         test::end(scenario);
     }
 
