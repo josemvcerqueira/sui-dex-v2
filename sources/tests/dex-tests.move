@@ -1,5 +1,6 @@
 #[test_only]
 module ipx::dex_tests {
+  
     use sui::coin::{Self, mint_for_testing as mint, destroy_for_testing as burn};
     use sui::test_scenario::{Self as test, Scenario, next_tx, ctx};
     use sui::math;
@@ -10,8 +11,8 @@ module ipx::dex_tests {
     struct Ether {}
     struct USDC {}
 
-    const INITIAL_ETHER_VALUE: u64 = 100;
-    const INITIAL_USDC_VALUE: u64 = 150000;
+    const INITIAL_ETHER_VALUE: u64 = 100000;
+    const INITIAL_USDC_VALUE: u64 = 150000000;
     const ZERO_ACCOUNT: address = @0x0;
 
     fun test_create_pool_(test: &mut Scenario) {
@@ -136,11 +137,11 @@ module ipx::dex_tests {
           let (ether_reserves_2, usdc_reserves_2, supply_2) = dex::get_amounts(pool);
 
           // rounding issues
-          assert!(burn(ether) == 9, 0);
-          assert!(burn(usdc) == 14992, 0);
+          assert!(burn(ether) == 9999, 0);
+          assert!(burn(usdc) == 14999989, 0);
           assert!(supply_1 == supply_2 + lp_coin_value, 0);
-          assert!(ether_reserves_1 == ether_reserves_2 + 9, 0);
-          assert!(usdc_reserves_1 == usdc_reserves_2 + 14992, 0);
+          assert!(ether_reserves_1 == ether_reserves_2 + 9999, 0);
+          assert!(usdc_reserves_1 == usdc_reserves_2 + 14999989, 0);
 
           test::return_shared(storage);
         }
@@ -150,6 +151,71 @@ module ipx::dex_tests {
     fun test_remove_liquidity() {
         let scenario = scenario();
         test_remove_liquidity_(&mut scenario);
+        test::end(scenario);
+    }
+
+    fun test_add_liquidity_with_fee_(test: &mut Scenario) {
+        test_create_pool_(test);
+
+       let ether_value = INITIAL_ETHER_VALUE / 10;
+       let usdc_value = INITIAL_USDC_VALUE / 10;
+
+       let (_, bob) = people();
+        
+       next_tx(test, bob);
+       {
+        let storage = test::take_shared<Storage>(test);
+
+        let (ether, usdc) = dex::swap(
+          &mut storage,
+          mint<Ether>(ether_value, ctx(test)),
+          coin::zero<USDC>(ctx(test)),
+          0,
+          ctx(test)
+        );
+
+        assert!(burn(ether) == 0, 0);
+        assert!(burn(usdc) != 0, 0);
+
+        test::return_shared(storage); 
+       };
+
+       next_tx(test, bob);
+       {
+        let storage = test::take_shared<Storage>(test);
+
+        let pool = dex::borrow_pool<Ether, USDC>(&storage);
+        let (ether_reserves_1, usdc_reserves_1, supply_1) = dex::get_amounts(pool);
+        let k_last = dex::get_k_last<Ether, USDC>(&mut storage);
+
+        let root_k = math::sqrt(ether_reserves_1 * usdc_reserves_1);
+        let root_k_last = math::sqrt(k_last);
+
+        let numerator = supply_1 * (root_k - root_k_last);
+        let denominator  = (root_k * 5) + root_k_last;
+        let fee = numerator / denominator;
+
+        let lp_coin = dex::add_liquidity(
+          &mut storage,
+          mint<Ether>(ether_value, ctx(test)),
+          mint<USDC>(usdc_value, ctx(test)),
+          ctx(test)
+        );
+
+        let pool = dex::borrow_pool<Ether, USDC>(&storage);
+        let (_, _, supply_2) = dex::get_amounts(pool);
+
+        assert!(fee > 0, 0);
+        assert!(burn(lp_coin) + fee + supply_1 == supply_2, 0);
+        
+        test::return_shared(storage);
+       }
+    }
+
+    #[test]
+    fun test_add_liquidity_with_fee() {
+        let scenario = scenario();
+        test_add_liquidity_with_fee_(&mut scenario);
         test::end(scenario);
     }
 
