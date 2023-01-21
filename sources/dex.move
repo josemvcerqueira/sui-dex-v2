@@ -418,6 +418,10 @@ module ipx::dex {
       bag::borrow<String, Pool<X, Y>>(&storage.pools, utils::get_lp_coin_name<X, Y>())
     }
 
+    public fun is_pool_deployed<X, Y>(storage: &Storage):bool {
+      bag::contains(&storage.pools, utils::get_lp_coin_name<X, Y>())
+    }
+
     public fun get_amounts<X, Y>(pool: &Pool<X, Y>): (u64, u64, u64) {
         (
             balance::value(&pool.balance_x),
