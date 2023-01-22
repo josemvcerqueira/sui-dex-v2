@@ -238,7 +238,8 @@ module ipx::interface {
 
     let (coin_x, coin_y) = dex::remove_liquidity(
       storage,
-      coin, ctx
+      coin, 
+      ctx
     );
 
     transfer::transfer(coin_x, sender);
@@ -282,5 +283,4 @@ module ipx::interface {
 
     (coin_x, coin_y)
   }
-
 }

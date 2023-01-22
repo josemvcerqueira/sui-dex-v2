@@ -45,7 +45,7 @@ module ipx::dex {
       fee_to: address
     }
 
-    struct LPCoin<phantom X, phantom Y> has drop, store {}
+    struct LPCoin<phantom X, phantom Y> has drop {}
 
     struct Pool<phantom X, phantom Y> has key, store {
         id: UID,
